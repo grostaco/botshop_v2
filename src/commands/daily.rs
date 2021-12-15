@@ -1,19 +1,28 @@
-use std::fs::File;
+use std::{
+    fs::{File, OpenOptions},
+    sync::Arc,
+    time::Duration,
+};
+
+use chrono::{DateTime, Utc};
+use csv::Writer;
+use serenity::{
+    client::bridge::gateway::ShardMessenger, http::Http,
+    model::interactions::application_command::ApplicationCommandInteraction,
+};
 
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
     /// The file to load daily tasks from
-    source_file: File,
-
+    source_file: String,
     transaction_file: File,
     records: Vec<(String, u8, Option<i64>)>,
 }
 
 impl Daily {
     fn new(source_file: &str, transaction_file: &str) -> Self {
-        let source = File::open(source_file).expect("Unable to open source file");
-
-        let mut rdr = csv::Reader::from_reader(source);
+        let mut rdr =
+            csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
         let mut records = Vec::new();
         for record in rdr.records() {
             let record = record.expect("Record cannot be read");
@@ -36,35 +45,87 @@ impl Daily {
         }
 
         Self {
-            source_file: File::open(source_file).expect("Unable to open source file"),
+            source_file: source_file.to_owned(),
             transaction_file: File::open(transaction_file).expect("Unable to transaction file"),
             records,
         }
     }
 
-    fn complete_task() {}
+    fn complete_task(&mut self, task_name: &str) {
+        let record = self
+            .records
+            .iter_mut()
+            .filter(|record| record.0 == task_name)
+            .next()
+            .unwrap();
+        record.2 = Some(DateTime::timestamp(&Utc::now()));
+        self.sync_with_source();
+    }
+
+    fn sync_with_source(&mut self) {
+        let mut wtr = Writer::from_writer(
+            OpenOptions::new()
+                .truncate(true)
+                .write(true)
+                .open(&self.source_file)
+                .unwrap(),
+        );
+
+        wtr.write_record(&["task", "points", "completed"])
+            .expect("Unable to write header to source file");
+        for record in &self.records {
+            wtr.write_record(&[
+                record.0.to_owned(),
+                record.1.to_string(),
+                match record.2 {
+                    Some(timestamp) => timestamp.to_string(),
+                    None => "None".to_owned(),
+                },
+            ])
+            .expect("Unable to write record to source file");
+        }
+    }
+
+    async fn handle_interaction(
+        http: &Arc<Http>,
+        interaction: ApplicationCommandInteraction,
+        shard_messenger: &ShardMessenger,
+    ) -> Result<(), serenity::Error> {
+        interaction
+            .create_interaction_response(http, |interaction| interaction)
+            .await?;
+
+        interaction
+            .get_interaction_response(http)
+            .await
+            .unwrap()
+            .await_component_interactions(shard_messenger)
+            .timeout(Duration::from_secs(15))
+            .await;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error;
+    use std::fs;
     use std::io::Write;
 
     use super::*;
-    use tempfile::Builder;
+    use tempfile::{Builder, NamedTempFile};
+
+    fn create_temporary(prefix: &str, suffix: &str) -> Result<NamedTempFile, Box<dyn Error>> {
+        Ok(Builder::new().prefix(prefix).suffix(suffix).tempfile()?)
+    }
 
     #[test]
     fn create_daily() {
-        let mut source_file = Builder::new()
-            .prefix("source_file")
-            .suffix(".csv")
-            .tempfile()
-            .expect("Unable to create tempfile");
+        let mut source_file = create_temporary("daily", ".csv").expect("Unable to create tempfile");
 
-        let transaction_file = Builder::new()
-            .prefix("transaction_file")
-            .suffix(".csv")
-            .tempfile()
-            .expect("Unable to create tempfile");
+        let transaction_file =
+            create_temporary("transaction", ".csv").expect("Unable to create tempfile");
 
         source_file
             .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222")
@@ -81,6 +142,31 @@ mod tests {
                 ("task1".to_owned(), 8, None),
                 ("task2".to_owned(), 8, Some(3222))
             ]
+        );
+    }
+
+    #[test]
+    fn complete_daily() {
+        let mut source_file = create_temporary("daily", ".csv").expect("Unable to create tempfile");
+        let transaction_file =
+            create_temporary("transaction", ".csv").expect("Unable to create tempfile");
+
+        source_file
+            .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222")
+            .expect("Unable to write source file");
+
+        let mut daily = Daily::new(
+            source_file.path().to_str().unwrap(),
+            transaction_file.path().to_str().unwrap(),
+        );
+
+        daily.complete_task("task1");
+        assert!(daily.records[0].2.is_some());
+        let time = daily.records[0].2.unwrap();
+
+        assert_eq!(
+            fs::read_to_string(source_file.path().to_str().unwrap()).unwrap(),
+            format!("task,points,completed\ntask1,8,{}\ntask2,8,3222\n", time)
         );
     }
 }
