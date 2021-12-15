@@ -13,12 +13,8 @@ use serenity::{
     client::bridge::gateway::ShardMessenger,
     futures::{lock::Mutex, StreamExt},
     http::Http,
-    model::{
-        channel::ReactionType,
-        id::EmojiId,
-        interactions::{
-            application_command::ApplicationCommandInteraction, InteractionResponseType,
-        },
+    model::interactions::{
+        application_command::ApplicationCommandInteraction, InteractionResponseType,
     },
     utils::Color,
 };
