@@ -7,13 +7,23 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use csv::Writer;
+use interpolation::lerp;
 use serenity::{
     builder::CreateInteractionResponse,
     client::bridge::gateway::ShardMessenger,
     futures::{lock::Mutex, StreamExt},
     http::Http,
-    model::interactions::application_command::ApplicationCommandInteraction,
+    model::{
+        channel::ReactionType,
+        id::EmojiId,
+        interactions::{
+            application_command::ApplicationCommandInteraction, InteractionResponseType,
+        },
+    },
+    utils::Color,
 };
+
+use crate::commands::util::get_tomorrow_midnight;
 
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
@@ -118,7 +128,79 @@ impl Daily {
         &self,
         interaction: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse {
-        interaction.interaction_response_data(|data| data.create_embed(|embed| embed.title("Hi!")))
+        let mut tasks = String::new();
+        let mut rewards = String::new();
+        let mut when = String::new();
+        let mut completed = 0;
+
+        for record in &self.records {
+            tasks.push_str(&format!("{}\n", record.0));
+            rewards.push_str(&format!(":coin:x{}\n", record.1));
+            when.push_str(&match record.2 {
+                Some(timestamp) => {
+                    completed += 1;
+                    let timestamp = DateTime::timestamp(&Utc::now()) - timestamp as i64;
+                    format!(
+                        "✅ Completed *{}h {}m {}s ago*\n",
+                        timestamp / 3600,
+                        timestamp % 3600 / 60,
+                        timestamp % 3600 % 60
+                    )
+                }
+                None => "⌛ Not Completed\n".to_owned(),
+            })
+        }
+
+        let completed: f32 = completed as f32 / self.records.len() as f32;
+
+        interaction.interaction_response_data(|data| {
+            data.create_embed(|embed| {
+                embed
+                    .title("Daily tasks! :D")
+                    .field("Task", tasks, true)
+                    .field("Rewards", rewards, true)
+                    .field("Progress", when, true)
+                    .color(Color::from_rgb(
+                        lerp(&227, &174, &completed),
+                        lerp(&36, &243, &completed),
+                        lerp(&43, &89, &completed),
+                    ))
+                    .footer(|footer| {
+                        let elapsed = (get_tomorrow_midnight() - Utc::now()).num_seconds();
+                        footer.text(format!(
+                            "{}h {}m {}s until refresh",
+                            elapsed / 3600,
+                            elapsed % 3600 / 60,
+                            elapsed % 3600 % 60
+                        ))
+                    })
+            })
+            .components(|components| {
+                if self.records.iter().any(|record| record.2.is_none()) {
+                    components.create_action_row(|row| {
+                        row.create_select_menu(|menu| {
+                            menu.options(|options| {
+                                for record in &self.records {
+                                    if record.2.is_none() {
+                                        options.create_option(|option| {
+                                            option
+                                                .label(&record.0)
+                                                .description(&format!("{}x coins", record.1))
+                                                .value(&record.0)
+                                        });
+                                    }
+                                }
+                                options
+                            })
+                            .custom_id("complete_daily_menu")
+                        })
+                    })
+                } else {
+                    components
+                }
+            });
+            data
+        })
     }
 
     pub async fn handle_interaction(
@@ -144,10 +226,16 @@ impl Daily {
         let daily = &Arc::new(Mutex::new(self));
         collector
             .for_each(|interaction| async move {
-                daily
-                    .lock()
+                let mut daily = daily.lock().await;
+                daily.complete_task(&interaction.data.values[0]);
+                interaction
+                    .create_interaction_response(http, |interaction| {
+                        daily
+                            .delegate_interaction_response(interaction)
+                            .kind(InteractionResponseType::UpdateMessage)
+                    })
                     .await
-                    .complete_task(&interaction.data.values[0]);
+                    .expect("Unable to update interaction");
             })
             .await;
 
