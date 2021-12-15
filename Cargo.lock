@@ -3,17 +3,6 @@
 version = 3
 
 [[package]]
-name = "BotShopv2"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "csv",
- "serenity",
- "tempfile",
- "tokio",
-]
-
-[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -71,6 +60,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "botshop_v2"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "csv",
+ "interpolation",
+ "serenity",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -448,6 +449,12 @@ checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "interpolation"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b7357d2bbc5ee92f8e899ab645233e43d21407573cceb37fed8bc3dede2c02"
 
 [[package]]
 name = "ipnet"

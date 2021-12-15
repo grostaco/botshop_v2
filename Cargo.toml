@@ -1,5 +1,5 @@
 [package]
-name = "BotShopv2"
+name = "botshop_v2"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,7 @@ edition = "2021"
 tempfile = "3.2"
 csv = "1.1"
 chrono = "0.4"
+interpolation = "0.2"
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"
