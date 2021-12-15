@@ -1,5 +1,6 @@
 use std::{
     fs::{File, OpenOptions},
+    io::Write,
     sync::Arc,
     time::Duration,
 };
@@ -7,7 +8,10 @@ use std::{
 use chrono::{DateTime, Utc};
 use csv::Writer;
 use serenity::{
-    client::bridge::gateway::ShardMessenger, http::Http,
+    builder::CreateInteractionResponse,
+    client::bridge::gateway::ShardMessenger,
+    futures::{lock::Mutex, StreamExt},
+    http::Http,
     model::interactions::application_command::ApplicationCommandInteraction,
 };
 
@@ -20,7 +24,7 @@ pub struct Daily {
 }
 
 impl Daily {
-    fn new(source_file: &str, transaction_file: &str) -> Self {
+    pub fn new(source_file: &str, transaction_file: &str) -> Self {
         let mut rdr =
             csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
         let mut records = Vec::new();
@@ -46,23 +50,47 @@ impl Daily {
 
         Self {
             source_file: source_file.to_owned(),
-            transaction_file: File::open(transaction_file).expect("Unable to transaction file"),
+            transaction_file: OpenOptions::new()
+                .append(true)
+                .write(true)
+                .open(transaction_file)
+                .expect("Unable to transaction file"),
+
             records,
         }
     }
 
-    fn complete_task(&mut self, task_name: &str) {
+    fn complete_task(&mut self, task_name: &str) -> Option<()> {
         let record = self
             .records
             .iter_mut()
             .filter(|record| record.0 == task_name)
-            .next()
-            .unwrap();
-        record.2 = Some(DateTime::timestamp(&Utc::now()));
-        self.sync_with_source();
+            .next();
+        if let Some(record) = record {
+            record.2 = Some(DateTime::timestamp(&Utc::now()));
+            self.transaction_file
+                .write(
+                    format!(
+                        "{},{},{}\n",
+                        record.0.to_owned(),
+                        record.1.to_string(),
+                        match record.2 {
+                            Some(timestamp) => timestamp.to_string(),
+                            None => "None".to_owned(),
+                        },
+                    )
+                    .as_bytes(),
+                )
+                .expect("Unable to commit transactions");
+
+            self.sync_with_source();
+            Some(())
+        } else {
+            None
+        }
     }
 
-    fn sync_with_source(&mut self) {
+    fn sync_with_source(&self) {
         let mut wtr = Writer::from_writer(
             OpenOptions::new()
                 .truncate(true)
@@ -86,21 +114,41 @@ impl Daily {
         }
     }
 
-    async fn handle_interaction(
+    fn delegate_interaction_response<'a>(
+        &self,
+        interaction: &'a mut CreateInteractionResponse,
+    ) -> &'a mut CreateInteractionResponse {
+        interaction.interaction_response_data(|data| data.create_embed(|embed| embed.title("Hi!")))
+    }
+
+    pub async fn handle_interaction(
+        &mut self,
         http: &Arc<Http>,
         interaction: ApplicationCommandInteraction,
         shard_messenger: &ShardMessenger,
     ) -> Result<(), serenity::Error> {
         interaction
-            .create_interaction_response(http, |interaction| interaction)
+            .create_interaction_response(http, |interaction| {
+                self.delegate_interaction_response(interaction)
+            })
             .await?;
 
-        interaction
+        let collector = interaction
             .get_interaction_response(http)
             .await
             .unwrap()
             .await_component_interactions(shard_messenger)
             .timeout(Duration::from_secs(15))
+            .await;
+
+        let daily = &Arc::new(Mutex::new(self));
+        collector
+            .for_each(|interaction| async move {
+                daily
+                    .lock()
+                    .await
+                    .complete_task(&interaction.data.values[0]);
+            })
             .await;
 
         Ok(())
@@ -152,7 +200,7 @@ mod tests {
             create_temporary("transaction", ".csv").expect("Unable to create tempfile");
 
         source_file
-            .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222")
+            .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222\ntask3,7,None")
             .expect("Unable to write source file");
 
         let mut daily = Daily::new(
@@ -166,7 +214,30 @@ mod tests {
 
         assert_eq!(
             fs::read_to_string(source_file.path().to_str().unwrap()).unwrap(),
-            format!("task,points,completed\ntask1,8,{}\ntask2,8,3222\n", time)
+            format!(
+                "task,points,completed\ntask1,8,{}\ntask2,8,3222\ntask3,7,None\n",
+                time
+            )
+        );
+        assert_eq!(
+            fs::read_to_string(transaction_file.path().to_str().unwrap()).unwrap(),
+            format!("task1,8,{}\n", time)
+        );
+
+        daily.complete_task("task3");
+        assert!(daily.records[2].2.is_some());
+        let time_three = daily.records[2].2.unwrap();
+
+        assert_eq!(
+            fs::read_to_string(source_file.path().to_str().unwrap()).unwrap(),
+            format!(
+                "task,points,completed\ntask1,8,{}\ntask2,8,3222\ntask3,7,{}\n",
+                time, time_three
+            )
+        );
+        assert_eq!(
+            fs::read_to_string(transaction_file.path().to_str().unwrap()).unwrap(),
+            format!("task1,8,{}\ntask3,7,{}\n", time, time_three)
         );
     }
 }
