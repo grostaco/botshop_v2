@@ -1,0 +1,20 @@
+[package]
+name = "BotShopv2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tempfile = "3.2"
+csv = "1.1"
+
+[dependencies.serenity]
+git = "https://github.com/serenity-rs/serenity"
+branch = "next"
+default-features = false
+features = ["builder", "cache", "client", "gateway", "model", "utils", "rustls_backend", "unstable_discord_api", "collector"]
+
+[dependencies.tokio]
+version = "1"
+features = ["full"]
