@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use csv::Writer;
 use interpolation::lerp;
 use serenity::{
@@ -19,7 +19,7 @@ use serenity::{
     utils::Color,
 };
 
-use crate::commands::util::get_tomorrow_midnight;
+use super::util::{get_today, get_tomorrow, Records};
 
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
@@ -31,29 +31,57 @@ pub struct Daily {
 
 impl Daily {
     pub fn new(source_file: &str, transaction_file: &str) -> Self {
-        let mut rdr =
-            csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
-        let mut records = Vec::new();
-        for record in rdr.records() {
-            let record = record.expect("Record cannot be read");
-            records.push((
-                record.get(0).expect("Expected task name").to_owned(),
+        let records = Records::from_file(source_file)
+            .expect("Cannot process records from source_file")
+            .iter()
+            .cloned()
+            .map(|mut record| {
+                if record.2.is_some() {
+                    let days = DateTime::<Utc>::from_utc(
+                        NaiveDateTime::from_timestamp(record.2.unwrap(), 0),
+                        Utc,
+                    );
+                    if days.num_days_from_ce() != get_today().num_days_from_ce() {
+                        record.2 = None;
+                    }
+                }
                 record
-                    .get(1)
-                    .expect("Expected points")
-                    .parse::<u8>()
-                    .expect("Expected points to be integral"),
-                match record.get(2).expect("Expected completed") {
-                    "None" => None,
-                    timestamp => Some(
-                        timestamp
-                            .parse::<i64>()
-                            .expect("Expected timestamp as an integer"),
-                    ),
-                },
-            ));
-        }
-
+            })
+            .collect();
+        /*
+                let mut rdr =
+                    csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
+                let mut records = Vec::new();
+                for record in rdr.records() {
+                    let record = record.expect("Record cannot be read");
+                    records.push((
+                        record.get(0).expect("Expected task name").to_owned(),
+                        record
+                            .get(1)
+                            .expect("Expected points")
+                            .parse::<u8>()
+                            .expect("Expected points to be integral"),
+                        match record.get(2).expect("Expected completed") {
+                            "None" => None,
+                            timestamp => {
+                                let timestamp = timestamp
+                                    .parse::<i64>()
+                                    .expect("Expected timestamp as an integer");
+                                let days = DateTime::<Utc>::from_utc(
+                                    NaiveDateTime::from_timestamp(timestamp, 0),
+                                    Utc,
+                                )
+                                .num_days_from_ce();
+                                if days != get_today().num_days_from_ce() {
+                                    None
+                                } else {
+                                    Some(timestamp)
+                                }
+                            }
+                        },
+                    ));
+                }
+        */
         Self {
             source_file: source_file.to_owned(),
             transaction_file: OpenOptions::new()
@@ -152,7 +180,10 @@ impl Daily {
         interaction.interaction_response_data(|data| {
             data.create_embed(|embed| {
                 embed
-                    .title("Daily tasks! :D")
+                    .title(format!(
+                        "Daily tasks! :D ({}% completed)",
+                        (completed * 100_f32) as u64
+                    ))
                     .field("Task", tasks, true)
                     .field("Rewards", rewards, true)
                     .field("Progress", when, true)
@@ -162,7 +193,7 @@ impl Daily {
                         lerp(&43, &89, &completed),
                     ))
                     .footer(|footer| {
-                        let elapsed = (get_tomorrow_midnight() - Utc::now()).num_seconds();
+                        let elapsed = (get_tomorrow() - Utc::now()).num_seconds();
                         footer.text(format!(
                             "{}h {}m {}s until refresh",
                             elapsed / 3600,
@@ -188,6 +219,7 @@ impl Daily {
                                 }
                                 options
                             })
+                            .placeholder("Pick your poison :>")
                             .custom_id("complete_daily_menu")
                         })
                     })
@@ -246,6 +278,7 @@ mod tests {
     use std::io::Write;
 
     use super::*;
+    use chrono::Duration;
     use tempfile::{Builder, NamedTempFile};
 
     fn create_temporary(prefix: &str, suffix: &str) -> Result<NamedTempFile, Box<dyn Error>> {
@@ -323,5 +356,23 @@ mod tests {
             fs::read_to_string(transaction_file.path().to_str().unwrap()).unwrap(),
             format!("task1,8,{}\ntask3,7,{}\n", time, time_three)
         );
+    }
+
+    #[test]
+    fn foo() {
+        let time = get_tomorrow() - Utc::now();
+        let other_time = Duration::seconds(1639554810);
+        println!(
+            "{} {} {}",
+            time.num_hours(),
+            time.num_minutes() % 60,
+            time.num_seconds() % 60
+        );
+        println!(
+            "{} {} {}",
+            other_time.num_hours() % 24,
+            other_time.num_minutes() % 60,
+            other_time.num_seconds() % 60
+        )
     }
 }
