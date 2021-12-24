@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Utc};
+use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use csv::{self, Writer};
 use interpolation::lerp;
 use serenity::{
@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use crate::commands::util::get_tomorrow;
+use crate::commands::util::{get_today, get_tomorrow, Records};
 
 pub struct Periodic {
     source_file: String,
@@ -28,30 +28,19 @@ pub struct Periodic {
 
 impl Periodic {
     pub fn new(source_file: &str, transaction_file: &str) -> Self {
-        let mut rdr =
-            csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
-        let mut records = Vec::new();
-        for record in rdr.records() {
-            let record = record.expect("Record cannot be read");
-            Utc::now().num_days_from_ce();
-            let timestamp = record.get(2).expect("Expected timestamp");
-            records.push((
-                record.get(0).expect("Expected task name").to_owned(),
-                record
-                    .get(1)
-                    .expect("Expected points")
-                    .parse::<u8>()
-                    .expect("Expected points to be integral"),
-                match record.get(2).expect("Expected completed") {
-                    "None" => None,
-                    timestamp => Some(
-                        timestamp
-                            .parse()
-                            .expect("Expected timestamp to be integer or None"),
-                    ),
-                },
-            ));
-        }
+        let records = Records::from_file(source_file)
+            .expect("Cannot process records from source_file")
+            .iter()
+            .cloned()
+            .filter(|record| match record.2 {
+                Some(timestamp) => {
+                    let days =
+                        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
+                    days.num_days_from_ce() == get_today().num_days_from_ce()
+                }
+                None => true,
+            })
+            .collect();
 
         Self {
             source_file: source_file.to_owned(),
