@@ -48,40 +48,6 @@ impl Daily {
                 record
             })
             .collect();
-        /*
-                let mut rdr =
-                    csv::Reader::from_path(source_file).expect("Cannot create Reader from source file");
-                let mut records = Vec::new();
-                for record in rdr.records() {
-                    let record = record.expect("Record cannot be read");
-                    records.push((
-                        record.get(0).expect("Expected task name").to_owned(),
-                        record
-                            .get(1)
-                            .expect("Expected points")
-                            .parse::<u8>()
-                            .expect("Expected points to be integral"),
-                        match record.get(2).expect("Expected completed") {
-                            "None" => None,
-                            timestamp => {
-                                let timestamp = timestamp
-                                    .parse::<i64>()
-                                    .expect("Expected timestamp as an integer");
-                                let days = DateTime::<Utc>::from_utc(
-                                    NaiveDateTime::from_timestamp(timestamp, 0),
-                                    Utc,
-                                )
-                                .num_days_from_ce();
-                                if days != get_today().num_days_from_ce() {
-                                    None
-                                } else {
-                                    Some(timestamp)
-                                }
-                            }
-                        },
-                    ));
-                }
-        */
         Self {
             source_file: source_file.to_owned(),
             transaction_file: OpenOptions::new()
