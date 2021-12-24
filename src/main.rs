@@ -21,7 +21,14 @@ impl EventHandler for Handler {
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with daily command!"),
-
+                "nya" => {
+                    command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response.interaction_response_data(|data| data.content("Nya!"))
+                        })
+                        .await
+                        .expect("Unable to nya :(");
+                }
                 _ => panic!("Unknown command!"),
             }
         }
@@ -45,6 +52,7 @@ impl EventHandler for Handler {
                             .name("pending")
                             .description("Fetch your incomplete tasks! \\o/")
                     })
+                    .create_application_command(|command| command.name("nya").description("nya :D"))
             },
         )
         .await
