@@ -30,8 +30,7 @@ impl Periodic {
     pub fn new(source_file: &str, transaction_file: &str) -> Self {
         let records = Records::from_file(source_file)
             .expect("Cannot process records from source_file")
-            .iter()
-            .cloned()
+            .into_iter()
             .filter(|record| match record.2 {
                 Some(timestamp) => {
                     let days =

@@ -72,6 +72,17 @@ impl<'a> Iterator for RecordsIter<'a> {
         }
     }
 }
+
+impl IntoIterator for Records {
+    type Item = Record;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 pub fn get_tomorrow() -> DateTime<Utc> {
     (Utc::now() + Duration::days(1)).date().and_hms(0, 0, 0)
 }

@@ -33,8 +33,7 @@ impl Daily {
     pub fn new(source_file: &str, transaction_file: &str) -> Self {
         let records = Records::from_file(source_file)
             .expect("Cannot process records from source_file")
-            .iter()
-            .cloned()
+            .into_iter()
             .map(|mut record| {
                 if record.2.is_some() {
                     let days = DateTime::<Utc>::from_utc(
