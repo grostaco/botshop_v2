@@ -8,10 +8,9 @@ use serenity::{
 };
 
 pub mod commands;
-use commands::daily::Daily;
-use commands::periodic::Periodic;
-use commands::transactions::Transactions;
+pub mod util;
 
+use commands::{Daily, Periodic, Transactions};
 struct Handler;
 
 #[async_trait]
