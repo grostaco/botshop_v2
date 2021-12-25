@@ -203,8 +203,7 @@ impl Periodic {
 
         let collector = interaction
             .get_interaction_response(http)
-            .await
-            .unwrap()
+            .await?
             .await_component_interactions(shard_messenger)
             .timeout(Duration::from_secs(15))
             .await;
