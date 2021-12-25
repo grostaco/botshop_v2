@@ -20,7 +20,7 @@ use serenity::{
 };
 
 use super::util::{get_today, get_tomorrow};
-use crate::util::Records;
+use crate::util::{RecordRow, Records};
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
     /// The file to load daily tasks from
@@ -98,9 +98,16 @@ impl Daily {
                 .unwrap(),
         );
 
-        wtr.write_record(&["task", "points", "completed"])
-            .expect("Unable to write header to source file");
+        //wtr.write_record(&["task", "points", "completed"])
+        //    .expect("Unable to write header to source file");
         for record in &self.records {
+            wtr.serialize(RecordRow {
+                task: &record.0,
+                points: record.1,
+                completed: record.2,
+            })
+            .expect("Unable to write record to source file");
+            /*
             wtr.write_record(&[
                 record.0.to_owned(),
                 record.1.to_string(),
@@ -110,6 +117,7 @@ impl Daily {
                 },
             ])
             .expect("Unable to write record to source file");
+             */
         }
     }
 

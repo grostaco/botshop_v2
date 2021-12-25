@@ -1,3 +1,3 @@
 pub mod records;
 
-pub use records::Records;
+pub use records::{RecordRow, Records};

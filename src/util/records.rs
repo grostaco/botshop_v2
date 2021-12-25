@@ -1,35 +1,38 @@
 use core::slice;
 use std::ops::Index;
 
+use serde::{Deserialize, Serialize};
+
 pub type Record = (String, u8, Option<i64>);
 pub struct Records(Vec<Record>);
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+struct RecordWrite {
+    pub task: String,
+    pub points: u8,
+    pub completed: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub struct RecordRow<'a> {
+    pub task: &'a str,
+    pub points: u8,
+    pub completed: Option<i64>,
+}
 
 impl Records {
     pub fn new() -> Self {
         Records(Vec::new())
     }
     pub fn from_file(path: &str) -> Result<Self, csv::Error> {
-        let mut rdr = csv::Reader::from_path(path)?;
+        let rdr = csv::Reader::from_path(path)?;
         let mut records = Records::new();
 
-        for record in rdr.records() {
-            let record = record?;
-            records.0.push((
-                record.get(0).expect("Expected task name").to_owned(),
-                record
-                    .get(1)
-                    .expect("Expected points")
-                    .parse()
-                    .expect("Expected point as an integer"),
-                match record.get(2).expect("Expected time completed") {
-                    "None" => None,
-                    timestamp => Some(
-                        timestamp
-                            .parse()
-                            .expect("Expected timestamp as either an integer or None"),
-                    ),
-                },
-            ));
+        for record in rdr.into_deserialize() {
+            let record: RecordWrite = record?;
+            records
+                .0
+                .push((record.task, record.points, record.completed));
         }
 
         Ok(records)
