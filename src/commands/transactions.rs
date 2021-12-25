@@ -1,3 +1,4 @@
+use chrono::{DateTime, NaiveDateTime, Utc};
 use std::sync::Arc;
 
 use serenity::{
@@ -5,7 +6,7 @@ use serenity::{
     model::interactions::application_command::ApplicationCommandInteraction,
 };
 
-use super::util::Records;
+use crate::util::records::Records;
 
 pub struct Transactions(Records);
 
@@ -21,8 +22,27 @@ impl Transactions {
         response.interaction_response_data(|data| {
             if self.0.len() != 0 {
                 data.create_embed(|embed| {
-                    for record in &self.0 {}
+                    let (task, points, completed) = self.0.iter().take(10).fold(
+                        (String::new(), String::new(), String::new()),
+                        |a, b| {
+                            (
+                                a.0 + &b.0 + "\n",
+                                a.1 + &b.1.to_string() + "\n",
+                                a.2 + &DateTime::<Utc>::from_utc(
+                                    NaiveDateTime::from_timestamp(b.2.unwrap(), 0),
+                                    Utc,
+                                )
+                                .format("%m/%d/%Y (%I:%M %p)\n")
+                                .to_string(),
+                            )
+                        },
+                    );
+
                     embed
+                        .title("Transactions history :>")
+                        .field("Transaction Name", task, true)
+                        .field("Coins", points, true)
+                        .field("Date", completed, true)
                 })
             } else {
                 data.create_embed(|embed| {

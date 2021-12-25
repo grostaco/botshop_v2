@@ -18,7 +18,8 @@ use std::{
     time::Duration,
 };
 
-use crate::commands::util::{get_today, get_tomorrow, Records};
+use super::util::{get_today, get_tomorrow};
+use crate::util::Records;
 
 pub struct Periodic {
     source_file: String,

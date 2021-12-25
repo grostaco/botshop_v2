@@ -19,8 +19,8 @@ use serenity::{
     utils::Color,
 };
 
-use super::util::{get_today, get_tomorrow, Records};
-
+use super::util::{get_today, get_tomorrow};
+use crate::util::Records;
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
     /// The file to load daily tasks from
@@ -117,28 +117,30 @@ impl Daily {
         &self,
         interaction: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse {
-        let mut tasks = String::new();
-        let mut rewards = String::new();
-        let mut when = String::new();
         let mut completed = 0;
 
-        for record in &self.records {
-            tasks.push_str(&format!("{}\n", record.0));
-            rewards.push_str(&format!(":coin:x{}\n", record.1));
-            when.push_str(&match record.2 {
-                Some(timestamp) => {
-                    completed += 1;
-                    let timestamp = DateTime::timestamp(&Utc::now()) - timestamp as i64;
-                    format!(
-                        "✅ Completed *{}h {}m {}s ago*\n",
-                        timestamp / 3600,
-                        timestamp % 3600 / 60,
-                        timestamp % 3600 % 60
-                    )
-                }
-                None => "⌛ Not Completed\n".to_owned(),
-            })
-        }
+        let (tasks, rewards, when) = self.records.iter().fold(
+            (String::new(), String::new(), String::new()),
+            |e, record| {
+                (
+                    e.0 + &format!("{}\n", record.0),
+                    e.1 + &format!(":coin:x{}\n", record.1),
+                    e.2 + &match record.2 {
+                        Some(timestamp) => {
+                            completed += 1;
+                            let timestamp = DateTime::timestamp(&Utc::now()) - timestamp as i64;
+                            format!(
+                                "✅ Completed *{}h {}m {}s ago*\n",
+                                timestamp / 3600,
+                                timestamp % 3600 / 60,
+                                timestamp % 3600 % 60
+                            )
+                        }
+                        None => "⌛ Not Completed\n".to_owned(),
+                    },
+                )
+            },
+        );
 
         let completed: f32 = completed as f32 / self.records.len() as f32;
 
