@@ -1,13 +1,10 @@
+use core::slice;
 use std::ops::Index;
 
 use chrono::{DateTime, Duration, Utc};
 
-type Record = (String, u8, Option<i64>);
+pub type Record = (String, u8, Option<i64>);
 pub struct Records(Vec<Record>);
-pub struct RecordsIter<'a> {
-    records: &'a Records,
-    index: usize,
-}
 
 impl Records {
     pub fn new() -> Self {
@@ -44,11 +41,12 @@ impl Records {
         self.0.len()
     }
 
-    pub fn iter(&self) -> RecordsIter<'_> {
-        RecordsIter {
-            records: self,
-            index: 0,
-        }
+    pub fn iter(&self) -> slice::Iter<'_, Record> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> slice::IterMut<'_, Record> {
+        self.0.iter_mut()
     }
 }
 
@@ -60,19 +58,6 @@ impl Index<usize> for Records {
     }
 }
 
-impl<'a> Iterator for RecordsIter<'a> {
-    type Item = &'a Record;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index < self.records.len() {
-            self.index += 1;
-            Some(&self.records[self.index - 1])
-        } else {
-            None
-        }
-    }
-}
-
 impl IntoIterator for Records {
     type Item = Record;
 
@@ -80,6 +65,26 @@ impl IntoIterator for Records {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Records {
+    type Item = &'a Record;
+
+    type IntoIter = slice::Iter<'a, Record>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Records {
+    type Item = &'a mut Record;
+
+    type IntoIter = slice::IterMut<'a, Record>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
     }
 }
 
