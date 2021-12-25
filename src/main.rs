@@ -10,6 +10,7 @@ use serenity::{
 pub mod commands;
 use commands::daily::Daily;
 use commands::periodic::Periodic;
+use commands::transactions::Transactions;
 
 struct Handler;
 
@@ -26,6 +27,10 @@ impl EventHandler for Handler {
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with pending command!"),
+                "transactions" => Transactions::new("resources/transactions.csv")
+                    .handle_interaction(&ctx.http, command)
+                    .await
+                    .expect("Something went wrong with the transactions command!"),
                 "nya" => {
                     command
                         .create_interaction_response(&ctx.http, |response| {
@@ -56,6 +61,11 @@ impl EventHandler for Handler {
                         command
                             .name("pending")
                             .description("Fetch your incomplete tasks! \\o/")
+                    })
+                    .create_application_command(|command| {
+                        command
+                            .name("transactions")
+                            .description("Fetch your transactions history :>")
                     })
                     .create_application_command(|command| command.name("nya").description("nya :D"))
             },
