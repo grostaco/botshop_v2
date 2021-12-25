@@ -10,6 +10,7 @@ tempfile = "3.2"
 csv = "1.1"
 chrono = "0.4"
 interpolation = "0.2"
+serde = "1.0"
 
 [dependencies.serenity]
 git = "https://github.com/serenity-rs/serenity"

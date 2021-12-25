@@ -69,6 +69,7 @@ dependencies = [
  "chrono",
  "csv",
  "interpolation",
+ "serde",
  "serenity",
  "tempfile",
  "tokio",
