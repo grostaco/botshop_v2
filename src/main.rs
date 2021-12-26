@@ -27,7 +27,7 @@ impl EventHandler for Handler {
                     .await
                     .expect("Something went wrong with pending command!"),
                 "transactions" => Transactions::new("resources/transactions.csv")
-                    .handle_interaction(&ctx.http, command)
+                    .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with the transactions command!"),
                 "nya" => {
