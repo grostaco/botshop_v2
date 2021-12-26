@@ -1,5 +1,3 @@
-use std::{iter::Take, sync::Arc, time::Duration};
-
 use serenity::{
     builder::{CreateComponents, CreateEmbed, CreateInteractionResponse},
     client::bridge::gateway::ShardMessenger,
@@ -12,6 +10,7 @@ use serenity::{
     },
     prelude::Mutex,
 };
+use std::{cmp::max, sync::Arc, time::Duration};
 
 pub struct Page<T> {
     items: Vec<T>,
@@ -45,7 +44,7 @@ impl<T> Page<T> {
                     .label(&format!(
                         "Page {}/{}",
                         self.index + 1,
-                        self.items.len() / self.chunk_size
+                        max(1, self.items.len() / self.chunk_size)
                     ))
                     .custom_id("page_display")
                     .style(ButtonStyle::Secondary)
@@ -56,7 +55,10 @@ impl<T> Page<T> {
                     .label("➡️")
                     .custom_id("right_page_select")
                     .style(ButtonStyle::Primary)
-                    .disabled(self.index + 1 >= self.items.len() / self.chunk_size)
+                    .disabled(
+                        self.index + 1
+                            >= (self.items.len() as f64 / self.chunk_size as f64).ceil() as usize,
+                    )
             })
         })
     }
