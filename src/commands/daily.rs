@@ -1,12 +1,11 @@
 use std::{
-    fs::{File, OpenOptions},
-    io::Write,
+    fs::{self, File, OpenOptions},
     sync::Arc,
     time::Duration,
 };
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
-use csv::Writer;
+use csv::{Writer, WriterBuilder};
 use interpolation::lerp;
 use serenity::{
     builder::CreateInteractionResponse,
@@ -25,7 +24,7 @@ use crate::util::{RecordRow, Records};
 pub struct Daily {
     /// The file to load daily tasks from
     source_file: String,
-    transaction_file: File,
+    transaction_file: Writer<File>,
     records: Vec<(String, u8, Option<i64>)>,
 }
 
@@ -49,11 +48,19 @@ impl Daily {
             .collect();
         Self {
             source_file: source_file.to_owned(),
-            transaction_file: OpenOptions::new()
-                .append(true)
-                .write(true)
-                .open(transaction_file)
-                .expect("Unable to transaction file"),
+            transaction_file: WriterBuilder::new()
+                .has_headers(
+                    fs::read_to_string(&transaction_file)
+                        .expect("Unable to read source file")
+                        .is_empty(),
+                )
+                .from_writer(
+                    OpenOptions::new()
+                        .append(true)
+                        .write(true)
+                        .open(&transaction_file)
+                        .unwrap(),
+                ),
 
             records,
         }
@@ -68,20 +75,13 @@ impl Daily {
         if let Some(record) = record {
             record.2 = Some(DateTime::timestamp(&Utc::now()));
             self.transaction_file
-                .write(
-                    format!(
-                        "{},{},{}\n",
-                        record.0.to_owned(),
-                        record.1.to_string(),
-                        match record.2 {
-                            Some(timestamp) => timestamp.to_string(),
-                            None => "None".to_owned(),
-                        },
-                    )
-                    .as_bytes(),
-                )
-                .expect("Unable to commit transactions");
-
+                .serialize(RecordRow {
+                    task: &record.0,
+                    points: record.1,
+                    completed: record.2,
+                })
+                .expect("Unable to serialize data and write");
+            self.transaction_file.flush().unwrap();
             self.sync_with_source();
             Some(())
         } else {
@@ -97,9 +97,6 @@ impl Daily {
                 .open(&self.source_file)
                 .unwrap(),
         );
-
-        //wtr.write_record(&["task", "points", "completed"])
-        //    .expect("Unable to write header to source file");
         for record in &self.records {
             wtr.serialize(RecordRow {
                 task: &record.0,
@@ -107,17 +104,6 @@ impl Daily {
                 completed: record.2,
             })
             .expect("Unable to write record to source file");
-            /*
-            wtr.write_record(&[
-                record.0.to_owned(),
-                record.1.to_string(),
-                match record.2 {
-                    Some(timestamp) => timestamp.to_string(),
-                    None => "None".to_owned(),
-                },
-            ])
-            .expect("Unable to write record to source file");
-             */
         }
     }
 
