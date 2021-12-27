@@ -2,20 +2,61 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use std::sync::Arc;
 
 use serenity::{
-    builder::CreateEmbed, client::bridge::gateway::ShardMessenger, http::Http,
-    model::interactions::application_command::ApplicationCommandInteraction,
+    async_trait,
+    builder::{CreateComponents, CreateEmbed, CreateInteractionResponse},
+    client::bridge::gateway::ShardMessenger,
+    http::Http,
+    model::interactions::{
+        application_command::ApplicationCommandInteraction,
+        message_component::{ButtonStyle, ComponentType, MessageComponentInteraction},
+        InteractionResponseType,
+    },
 };
 
-use crate::util::{records::Record, Page, Records};
-pub struct Transactions(Records);
+use crate::util::{Component, ComponentManager, Records};
+
+pub struct Transactions(ComponentManager);
+
+const CHUNK_SIZE: usize = 10;
 
 impl Transactions {
     pub fn new(transaction_file: &str) -> Self {
-        Self(Records::from_file(transaction_file).expect("Unable to open process transaction file"))
+        let records =
+            Records::from_file(transaction_file).expect("Unable to open process transaction file");
+        let mut component_mgr = ComponentManager::new();
+        component_mgr.add_component(Box::new(Page::new(records)));
+        Self(component_mgr)
     }
 
-    fn create_embed(records: Vec<&&Record>) -> CreateEmbed {
+    pub async fn handle_interaction(
+        &mut self,
+        http: &Arc<Http>,
+        interaction: ApplicationCommandInteraction,
+        shard: &ShardMessenger,
+    ) -> Result<(), serenity::Error> {
+        self.0.handle_interaction(http, interaction, shard).await?;
+        Ok(())
+    }
+}
+
+struct Page {
+    records: Records,
+    index: usize,
+}
+
+impl Page {
+    fn new(records: Records) -> Self {
+        Self { records, index: 0 }
+    }
+
+    fn get_embed(&self) -> CreateEmbed {
         let mut embed = CreateEmbed::default();
+        let records = self
+            .records
+            .iter()
+            .skip(self.index * CHUNK_SIZE)
+            .take(CHUNK_SIZE)
+            .collect::<Vec<_>>();
         if records.len() != 0 {
             let (task, points, completed) = records.iter().take(10).fold(
                 (String::new(), String::new(), String::new()),
@@ -47,20 +88,77 @@ impl Transactions {
         embed
     }
 
-    pub async fn handle_interaction(
+    fn delegate_component<'a>(
         &self,
-        http: &Arc<Http>,
-        interaction: ApplicationCommandInteraction,
-        shard: &ShardMessenger,
-    ) -> Result<(), serenity::Error> {
-        let mut page: Page<&Record> = Page::new(10);
-        for record in &self.0 {
-            page.push(record)
-        }
-        page.handle_interaction(http, interaction, shard, |record| {
-            Self::create_embed(record)
+        component: &'a mut CreateComponents,
+    ) -> &'a mut CreateComponents {
+        let max_page = (self.records.len() as f64 / CHUNK_SIZE as f64).ceil() as usize;
+        component.create_action_row(|row| {
+            row.create_button(|button| {
+                button
+                    .label("⬅️")
+                    .custom_id("left_page_select")
+                    .style(ButtonStyle::Primary)
+                    .disabled(self.index == 0)
+            })
+            .create_button(|button| {
+                button
+                    .label(&format!("Page {}/{}", self.index + 1, max_page,))
+                    .custom_id("page_display")
+                    .style(ButtonStyle::Secondary)
+                    .disabled(true)
+            })
+            .create_button(|button| {
+                button
+                    .label("➡️")
+                    .custom_id("right_page_select")
+                    .style(ButtonStyle::Primary)
+                    .disabled(self.index + 1 >= max_page)
+            })
         })
-        .await?;
+    }
+}
+
+#[async_trait]
+impl Component for Page {
+    fn want_component_interaction(&self, component_interaction_type: ComponentType) -> bool {
+        component_interaction_type == ComponentType::Button
+    }
+
+    fn delegate_response<'a>(
+        &self,
+        response: &'a mut CreateInteractionResponse,
+    ) -> &'a mut CreateInteractionResponse {
+        response.interaction_response_data(|data| {
+            data.add_embed(self.get_embed())
+                .components(|component| self.delegate_component(component))
+        })
+    }
+
+    async fn on_interaction(
+        &mut self,
+        http: &Arc<Http>,
+        interaction: &Arc<MessageComponentInteraction>,
+    ) -> Result<(), serenity::Error> {
+        if interaction.data.component_type == ComponentType::Button {
+            match interaction.data.custom_id.as_str() {
+                "left_page_select" => self.index -= 1,
+                "right_page_select" => self.index += 1,
+                _ => panic!(),
+            }
+            interaction
+                .create_interaction_response(http, |response| {
+                    self.delegate_response(response)
+                        .kind(InteractionResponseType::UpdateMessage)
+                })
+                .await
+                .expect("Unable to update interaction");
+        } else {
+            panic!(
+                "Unexpectedly received an interaction of type {}\n",
+                interaction.data.component_type as u8
+            )
+        }
         Ok(())
     }
 }

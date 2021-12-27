@@ -8,23 +8,23 @@ use serenity::{
     http::Http,
     model::interactions::{
         application_command::ApplicationCommandInteraction,
-        message_component::MessageComponentInteraction, InteractionType,
+        message_component::{ComponentType, MessageComponentInteraction},
     },
 };
 
 #[async_trait]
-pub trait Component {
-    fn delegate_component<'a>(
+pub trait Component: Send + Sync {
+    fn delegate_response<'a>(
         &self,
-        components: &'a mut CreateInteractionResponse,
+        response: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse;
-    fn want_interaction(&self, interaction_type: InteractionType) -> bool;
+    fn want_component_interaction(&self, component_interaction_type: ComponentType) -> bool;
     async fn on_interaction(
-        &self,
+        &mut self,
+        http: &Arc<Http>,
         interaction: &Arc<MessageComponentInteraction>,
     ) -> Result<(), serenity::Error>;
 }
-
 pub struct ComponentManager {
     components: Vec<Box<dyn Component>>,
 }
@@ -40,7 +40,7 @@ impl ComponentManager {
         self.components.push(component)
     }
 
-    pub async fn handle_interaction<F>(
+    pub async fn handle_interaction(
         &mut self,
         http: &Arc<Http>,
         interaction: ApplicationCommandInteraction,
@@ -50,7 +50,7 @@ impl ComponentManager {
             .create_interaction_response(http, |response| {
                 self.components
                     .iter()
-                    .fold(response, |acc, component| component.delegate_component(acc))
+                    .fold(response, |acc, component| component.delegate_response(acc))
             })
             .await?;
 
@@ -62,17 +62,14 @@ impl ComponentManager {
             .timeout(Duration::from_secs(15))
             .await;
 
-        let components = &Arc::new(Mutex::new(&self.components));
+        let components = &Arc::new(Mutex::new(&mut self.components));
         collector
             .for_each(|interaction| async move {
-                for component in components
-                    .lock()
-                    .await
-                    .iter()
-                    .filter(|component| component.want_interaction(interaction.kind))
-                {
+                for component in components.lock().await.iter_mut().filter(|component| {
+                    component.want_component_interaction(interaction.data.component_type)
+                }) {
                     component
-                        .on_interaction(&interaction)
+                        .on_interaction(http, &interaction)
                         .await
                         .map_err(|_e| panic!("Unable to handle interaction"))
                         .unwrap();
