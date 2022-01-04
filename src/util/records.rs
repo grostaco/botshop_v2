@@ -43,6 +43,10 @@ impl Records {
         Ok(records)
     }
 
+    pub fn push(&mut self, task: String, points: u8, timestamp: Option<i64>) {
+        self.0.push((task, points, timestamp))
+    }
+
     pub fn len(&self) -> usize {
         self.0.len()
     }

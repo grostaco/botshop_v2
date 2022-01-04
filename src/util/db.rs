@@ -27,6 +27,11 @@ impl User {
             Some(user) => Ok(user),
         }
     }
+
+    pub fn update(&self, db_path: &str) -> Result<()> {
+        update_user(db_path, self)?;
+        Ok(())
+    }
 }
 
 pub fn insert_user(db_path: &str, user: User) -> Result<()> {
@@ -52,7 +57,7 @@ pub fn insert_user(db_path: &str, user: User) -> Result<()> {
     Ok(())
 }
 
-pub fn update_user(db_path: &str, user: User) -> Result<()> {
+pub fn update_user(db_path: &str, user: &User) -> Result<()> {
     let conn = Connection::open(db_path)?;
 
     let mut stmt = conn.prepare(&format!(

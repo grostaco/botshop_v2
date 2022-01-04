@@ -19,7 +19,7 @@ impl EventHandler for Handler {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
             match command.data.name.as_str() {
-                "daily" => Daily::new("resources/daily.csv", "resources/transactions.csv")
+                "daily" => Daily::new("resources/users.db", command.user.id.0)
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with daily command!"),

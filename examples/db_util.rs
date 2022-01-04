@@ -133,7 +133,7 @@ fn main() {
                     record.0.push((name.to_string(), *points, *timestamp));
                 }
             }
-            update_user(&cli.dbfile, user).expect("Cannot update for user");
+            update_user(&cli.dbfile, &user).expect("Cannot update for user");
         }
     }
 }
