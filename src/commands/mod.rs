@@ -1,4 +1,5 @@
 pub mod daily;
+pub mod info;
 pub mod periodic;
 pub mod shop;
 pub mod transactions;

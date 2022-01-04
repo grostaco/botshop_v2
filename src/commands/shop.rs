@@ -7,6 +7,7 @@ pub struct Shop(Vec<Item>);
 struct Item {
     name: String,
     cost: u64,
+    qty: i64,
 }
 
 impl Shop {
