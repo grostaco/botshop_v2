@@ -1,10 +1,10 @@
 pub mod daily;
 pub mod info;
-pub mod periodic;
+pub mod pending;
 pub mod shop;
 pub mod transactions;
 pub mod util;
 
 pub use daily::Daily;
-pub use periodic::Periodic;
+pub use pending::Pending;
 pub use transactions::Transactions;

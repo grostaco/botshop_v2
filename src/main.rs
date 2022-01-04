@@ -11,7 +11,7 @@ pub mod commands;
 pub mod util;
 
 pub use crate::util::Records;
-use commands::{Daily, Periodic, Transactions};
+use commands::{Daily, Pending, Transactions};
 struct Handler;
 
 #[async_trait]
@@ -23,7 +23,7 @@ impl EventHandler for Handler {
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with daily command!"),
-                "pending" => Periodic::new("resources/users.db", command.user.id.0)
+                "pending" => Pending::new("resources/users.db", command.user.id.0)
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with pending command!"),

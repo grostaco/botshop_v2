@@ -67,7 +67,7 @@ enum ModifySub {
 #[derive(Copy, Clone, ArgEnum)]
 enum RecordType {
     Daily,
-    Periodic,
+    Pending,
     Transaction,
 }
 
@@ -104,7 +104,7 @@ fn main() {
 
             let record = match record_type {
                 RecordType::Daily => &mut user.daily,
-                RecordType::Periodic => &mut user.periodic,
+                RecordType::Pending => &mut user.periodic,
                 RecordType::Transaction => &mut user.transactions,
             };
 

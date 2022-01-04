@@ -16,12 +16,12 @@ use std::{sync::Arc, time::Duration};
 use super::util::{get_today, get_tomorrow};
 use crate::util::Records;
 
-pub struct Periodic {
+pub struct Pending {
     db_file: String,
     user: User,
 }
 
-impl Periodic {
+impl Pending {
     pub fn new(db_file: &str, user_id: u64) -> Self {
         let mut user = User::from_file(db_file, user_id).unwrap();
         user.periodic = Records(
@@ -112,7 +112,7 @@ impl Periodic {
             data.create_embed(|embed| {
                 embed
                     .title(format!(
-                        "Daily tasks! :D ({}% completed)",
+                        "Pending tasks! :D ({}% completed)",
                         (completed * 100_f32) as u64
                     ))
                     .field("Task", tasks, true)
