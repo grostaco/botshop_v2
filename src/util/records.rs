@@ -4,6 +4,7 @@ use std::ops::Index;
 use serde::{Deserialize, Serialize};
 
 pub type Record = (String, u8, Option<i64>);
+#[derive(Debug)]
 pub struct Records(Vec<Record>);
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
