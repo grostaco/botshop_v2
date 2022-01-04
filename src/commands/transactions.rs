@@ -34,7 +34,9 @@ impl Transactions {
         interaction: ApplicationCommandInteraction,
         shard: &ShardMessenger,
     ) -> Result<(), serenity::Error> {
-        self.0.handle_interaction(http, interaction, shard).await?;
+        self.0
+            .handle_interaction(http, interaction, shard, 15)
+            .await?;
         Ok(())
     }
 }
