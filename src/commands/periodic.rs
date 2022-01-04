@@ -179,6 +179,7 @@ impl Periodic {
             .await?
             .await_component_interactions(shard_messenger)
             .timeout(Duration::from_secs(15))
+            .author_id(self.user.id)
             .await;
 
         let daily = &Arc::new(Mutex::new(self));
