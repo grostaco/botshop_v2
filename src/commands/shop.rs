@@ -1,4 +1,3 @@
-use csv::Reader;
 use serde::{Deserialize, Serialize};
 
 pub struct Shop(Vec<Item>);

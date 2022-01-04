@@ -6,8 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tempfile = "3.2"
-csv = "1.1"
 chrono = "0.4"
 interpolation = "0.2"
 serde = "1.0"
