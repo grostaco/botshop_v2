@@ -13,18 +13,17 @@ use serenity::{
     },
 };
 
-use crate::util::{Component, ComponentManager, Records};
+use crate::util::{db::User, Component, ComponentManager, Records};
 
 pub struct Transactions(ComponentManager);
 
 const CHUNK_SIZE: usize = 10;
 
 impl Transactions {
-    pub fn new(transaction_file: &str) -> Self {
-        let records =
-            Records::from_file(transaction_file).expect("Unable to open process transaction file");
+    pub fn new(db_file: &str, user_id: u64) -> Self {
+        let user = User::from_file(db_file, user_id).unwrap();
         let mut component_mgr = ComponentManager::new();
-        component_mgr.add_component(Box::new(Page::new(records)));
+        component_mgr.add_component(Box::new(Page::new(user.transactions)));
         Self(component_mgr)
     }
 
