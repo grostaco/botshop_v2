@@ -47,19 +47,29 @@ enum Commands {
 enum ModifySub {
     /// Insert into a record type
     Insert {
+        /// Record's name to be inserted
         name: String,
+        /// Record's points to be inserted
         points: u8,
+        /// Record's timestamp to be inserted. Blank if it's not completed.
         timestamp: Option<i64>,
     },
 
     /// Delete a record from a record type
-    Delete { index: usize },
+    Delete {
+        /// Index of the record to delete
+        index: usize,
+    },
 
     /// Update an existing record in a record type
     Update {
+        /// Index of the record to update
         index: usize,
+        /// Record's new name
         name: String,
+        /// Record's new points
         points: u8,
+        /// Record's new timestamp. Blank if it's not completed.
         timestamp: Option<i64>,
     },
 }
