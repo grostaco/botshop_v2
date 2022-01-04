@@ -29,19 +29,6 @@ impl Records {
     pub fn new() -> Self {
         Records(Vec::new())
     }
-    pub fn from_file(path: &str) -> Result<Self, csv::Error> {
-        let rdr = csv::Reader::from_path(path)?;
-        let mut records = Records::new();
-
-        for record in rdr.into_deserialize() {
-            let record: RecordWrite = record?;
-            records
-                .0
-                .push((record.task, record.points, record.completed));
-        }
-
-        Ok(records)
-    }
 
     pub fn push(&mut self, task: String, points: u8, timestamp: Option<i64>) {
         self.0.push((task, points, timestamp))

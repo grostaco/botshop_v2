@@ -13,6 +13,7 @@ impl Shop {
     pub fn new() -> Self {
         Self(Vec::new())
     }
+    /*
 
     pub fn from_file(shop_file: &str) -> Result<(), csv::Error> {
         let mut shop = Shop::new();
@@ -24,4 +25,5 @@ impl Shop {
 
         Ok(())
     }
+    */
 }
