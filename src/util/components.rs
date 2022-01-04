@@ -45,6 +45,7 @@ impl ComponentManager {
         http: &Arc<Http>,
         interaction: ApplicationCommandInteraction,
         shard_messenger: &ShardMessenger,
+        timeout: u64,
     ) -> Result<(), serenity::Error> {
         interaction
             .create_interaction_response(http, |response| {
@@ -59,7 +60,7 @@ impl ComponentManager {
             .await
             .unwrap()
             .await_component_interactions(shard_messenger)
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(timeout))
             .await;
 
         let components = &Arc::new(Mutex::new(&mut self.components));
