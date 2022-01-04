@@ -1,38 +1,5 @@
-use rusqlite::{
-    params,
-    types::{FromSql, ToSqlOutput},
-    Connection, Result, ToSql,
-};
-use serde::{Deserialize, Serialize};
-pub type Record = (String, u8, Option<i64>);
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Records(pub Vec<Record>);
-
-impl ToSql for Records {
-    fn to_sql(&self) -> Result<rusqlite::types::ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::from(
-            bincode::serialize(self).expect("Unable to serialize Records"),
-        ))
-    }
-}
-
-impl FromSql for Records {
-    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
-        Ok(bincode::deserialize(value.as_blob().unwrap()).unwrap())
-    }
-}
-
-impl Records {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn push_record(&mut self, task: String, points: u8, timestamp: Option<i64>) {
-        self.0.push((task, points, timestamp));
-    }
-}
-
+use super::Records;
+use rusqlite::{params, Connection, Result};
 #[derive(Debug)]
 pub struct User {
     pub id: u64,
@@ -48,6 +15,16 @@ impl User {
             daily: Records::new(),
             periodic: Records::new(),
             transactions: Records::new(),
+        }
+    }
+
+    pub fn from_file(db_file: &str, user_id: u64) -> Result<Self> {
+        match query_user(db_file, user_id)? {
+            None => {
+                insert_user(db_file, User::new(user_id))?;
+                Ok(Self::new(user_id))
+            }
+            Some(user) => Ok(user),
         }
     }
 }
@@ -109,44 +86,4 @@ pub fn query_user(db_path: &str, id: u64) -> Result<Option<User>> {
         .last();
 
     Ok(user)
-}
-
-#[cfg(test)]
-mod test {
-    use super::{insert_user, query_user, update_user, Records, User};
-
-    #[test]
-    fn try_insert() {
-        insert_user(
-            "x.db",
-            User {
-                id: 0,
-                daily: Records::new(),
-                periodic: Records::new(),
-                transactions: Records::new(),
-            },
-        )
-        .expect("??");
-    }
-
-    #[test]
-    fn try_query() {
-        query_user("x.db", 0).unwrap();
-    }
-
-    #[test]
-    fn try_update() {
-        let mut periodic = Records::new();
-        periodic.push_record("A".to_owned(), 5, Some(5));
-        update_user(
-            "x.db",
-            User {
-                id: 0,
-                daily: Records::new(),
-                periodic: periodic,
-                transactions: Records::new(),
-            },
-        )
-        .unwrap();
-    }
 }

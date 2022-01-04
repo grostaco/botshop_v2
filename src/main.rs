@@ -10,6 +10,7 @@ use serenity::{
 pub mod commands;
 pub mod util;
 
+pub use crate::util::Records;
 use commands::{Daily, Periodic, Transactions};
 struct Handler;
 

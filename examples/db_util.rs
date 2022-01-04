@@ -1,15 +1,11 @@
+use botshop_v2::util::db::{insert_user, query_user, update_user, User};
 use clap::{ArgEnum, Parser, Subcommand};
-
-#[path = "../src/util/db.rs"]
-mod db;
-use db::{insert_user, query_user, update_user, User};
-
 #[derive(Parser)]
 #[clap(name = "DB Util")]
 #[clap(author = "Xetera Mnemonics <grostaco@gmail.com>")]
 #[clap(version = "0.1")]
 #[clap(about = "Manage the user record database")]
-struct Cli {
+pub struct Cli {
     /// Database file to manage
     #[clap(short, long)]
     dbfile: String,
@@ -121,7 +117,7 @@ fn main() {
                 } => {
                     let index = *index;
                     if index >= record.0.len() {
-                        record.push_record(name.to_string(), *points, *timestamp);
+                        record.0.push((name.to_string(), *points, *timestamp));
                     } else {
                         record.0[index] = (name.to_string(), *points, *timestamp);
                     }
@@ -134,7 +130,7 @@ fn main() {
                     points,
                     timestamp,
                 } => {
-                    record.push_record(name.to_string(), *points, *timestamp);
+                    record.0.push((name.to_string(), *points, *timestamp));
                 }
             }
             update_user(&cli.dbfile, user).expect("Cannot update for user");

@@ -1,11 +1,15 @@
 use core::slice;
 use std::ops::Index;
 
+use rusqlite::{
+    types::{FromSql, ToSqlOutput},
+    ToSql,
+};
 use serde::{Deserialize, Serialize};
 
 pub type Record = (String, u8, Option<i64>);
-#[derive(Debug)]
-pub struct Records(Vec<Record>);
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Records(pub Vec<Record>);
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct RecordWrite {
@@ -49,6 +53,20 @@ impl Records {
 
     pub fn iter_mut(&mut self) -> slice::IterMut<'_, Record> {
         self.0.iter_mut()
+    }
+}
+
+impl ToSql for Records {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(
+            bincode::serialize(self).expect("Unable to serialize Records"),
+        ))
+    }
+}
+
+impl FromSql for Records {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        Ok(bincode::deserialize(value.as_blob().unwrap()).unwrap())
     }
 }
 
