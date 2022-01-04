@@ -1,4 +1,5 @@
 use botshop_v2::util::db::{insert_user, query_user, update_user, User};
+use chrono::Utc;
 use clap::{ArgEnum, Parser, Subcommand};
 #[derive(Parser)]
 #[clap(name = "DB Util")]
@@ -125,11 +126,15 @@ fn main() {
                     points,
                     timestamp,
                 } => {
+                    let mut timestamp = *timestamp;
+                    if matches!(record_type, RecordType::Transaction) && timestamp.is_none() {
+                        timestamp = Some(Utc::now().timestamp())
+                    }
                     let index = *index;
                     if index >= record.0.len() {
-                        record.0.push((name.to_string(), *points, *timestamp));
+                        record.0.push((name.to_string(), *points, timestamp));
                     } else {
-                        record.0[index] = (name.to_string(), *points, *timestamp);
+                        record.0[index] = (name.to_string(), *points, timestamp);
                     }
                 }
                 ModifySub::Delete { index } => {
@@ -140,7 +145,12 @@ fn main() {
                     points,
                     timestamp,
                 } => {
-                    record.0.push((name.to_string(), *points, *timestamp));
+                    let mut timestamp = *timestamp;
+                    if matches!(record_type, RecordType::Transaction) && timestamp.is_none() {
+                        timestamp = Some(Utc::now().timestamp())
+                    }
+
+                    record.0.push((name.to_string(), *points, timestamp));
                 }
             }
             update_user(&cli.dbfile, &user).expect("Cannot update for user");
