@@ -66,30 +66,23 @@ impl Periodic {
             None
         }
     }
-    /*
-       fn sync_with_source(&self) {
-           let mut wtr = Writer::from_writer(
-               OpenOptions::new()
-                   .truncate(true)
-                   .write(true)
-                   .open(&self.source_file)
-                   .unwrap(),
-           );
 
-           for record in &self.records {
-               wtr.serialize(RecordRow {
-                   task: &record.0,
-                   points: record.1,
-                   completed: record.2,
-               })
-               .expect("Unable to write record to source file");
-           }
-       }
-    */
     fn delegate_interaction_response<'a>(
         &self,
         interaction: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse {
+        if self.user.periodic.len() == 0 {
+            return interaction.interaction_response_data(|data| {
+                data.create_embed(|embed| {
+                    embed
+                        .title("You have no pending tasks! :tada: Good work!")
+                        .description("Give yourself a pat on the back :>")
+                        .footer(|footer| footer.text("Don't be too happy, more will come"))
+                        .color((174, 243, 89))
+                })
+            });
+        }
+
         let mut tasks = String::new();
         let mut rewards = String::new();
         let mut when = String::new();
@@ -113,7 +106,7 @@ impl Periodic {
             })
         }
 
-        let completed: f32 = completed as f32 / self.user.periodic.len() as f32;
+        let completed = completed as f32 / self.user.periodic.len() as f32;
 
         interaction.interaction_response_data(|data| {
             data.create_embed(|embed| {

@@ -68,6 +68,17 @@ impl Daily {
         &self,
         interaction: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse {
+        if self.user.daily.len() == 0 {
+            return interaction.interaction_response_data(|data| {
+                data.create_embed(|embed| {
+                    embed
+                        .title("This is a little awkward")
+                        .description("You have no daily tasks?")
+                        .footer(|footer| footer.text("Add something :< Self improvement happens when you have a routine!"))
+                })
+            });
+        }
+
         let mut completed = 0;
 
         let (tasks, rewards, when) = self.user.daily.iter().fold(
@@ -188,111 +199,3 @@ impl Daily {
         Ok(())
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use std::error::Error;
-    use std::fs;
-    use std::io::Write;
-
-    use super::*;
-    use chrono::Duration;
-    use tempfile::{Builder, NamedTempFile};
-
-    fn create_temporary(prefix: &str, suffix: &str) -> Result<NamedTempFile, Box<dyn Error>> {
-        Ok(Builder::new().prefix(prefix).suffix(suffix).tempfile()?)
-    }
-
-    #[test]
-    fn create_daily() {
-        let mut source_file = create_temporary("daily", ".csv").expect("Unable to create tempfile");
-
-        let transaction_file =
-            create_temporary("transaction", ".csv").expect("Unable to create tempfile");
-
-        source_file
-            .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222")
-            .expect("Unable to write source file");
-
-        let daily = Daily::new(
-            source_file.path().to_str().unwrap(),
-            transaction_file.path().to_str().unwrap(),
-        );
-
-        assert_eq!(
-            daily.records,
-            vec![
-                ("task1".to_owned(), 8, None),
-                ("task2".to_owned(), 8, Some(3222))
-            ]
-        );
-    }
-
-    #[test]
-    fn complete_daily() {
-        let mut source_file = create_temporary("daily", ".csv").expect("Unable to create tempfile");
-        let transaction_file =
-            create_temporary("transaction", ".csv").expect("Unable to create tempfile");
-
-        source_file
-            .write(b"task,points,completed\ntask1,8,None\ntask2,8,3222\ntask3,7,None")
-            .expect("Unable to write source file");
-
-        let mut daily = Daily::new(
-            source_file.path().to_str().unwrap(),
-            transaction_file.path().to_str().unwrap(),
-        );
-
-        daily.complete_task("task1");
-        assert!(daily.records[0].2.is_some());
-        let time = daily.records[0].2.unwrap();
-
-        assert_eq!(
-            fs::read_to_string(source_file.path().to_str().unwrap()).unwrap(),
-            format!(
-                "task,points,completed\ntask1,8,{}\ntask2,8,3222\ntask3,7,None\n",
-                time
-            )
-        );
-        assert_eq!(
-            fs::read_to_string(transaction_file.path().to_str().unwrap()).unwrap(),
-            format!("task1,8,{}\n", time)
-        );
-
-        daily.complete_task("task3");
-        assert!(daily.records[2].2.is_some());
-        let time_three = daily.records[2].2.unwrap();
-
-        assert_eq!(
-            fs::read_to_string(source_file.path().to_str().unwrap()).unwrap(),
-            format!(
-                "task,points,completed\ntask1,8,{}\ntask2,8,3222\ntask3,7,{}\n",
-                time, time_three
-            )
-        );
-        assert_eq!(
-            fs::read_to_string(transaction_file.path().to_str().unwrap()).unwrap(),
-            format!("task1,8,{}\ntask3,7,{}\n", time, time_three)
-        );
-    }
-
-    #[test]
-    fn foo() {
-        let time = get_tomorrow() - Utc::now();
-        let other_time = Duration::seconds(1639554810);
-        println!(
-            "{} {} {}",
-            time.num_hours(),
-            time.num_minutes() % 60,
-            time.num_seconds() % 60
-        );
-        println!(
-            "{} {} {}",
-            other_time.num_hours() % 24,
-            other_time.num_minutes() % 60,
-            other_time.num_seconds() % 60
-        )
-    }
-}
- */
