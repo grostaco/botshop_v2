@@ -1,5 +1,5 @@
+use crate::util::db::User;
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
-use csv::{self, Writer, WriterBuilder};
 use interpolation::lerp;
 use serenity::{
     builder::CreateInteractionResponse,
@@ -11,97 +11,81 @@ use serenity::{
     },
     utils::Color,
 };
-use std::{
-    fs::{self, File, OpenOptions},
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use super::util::{get_today, get_tomorrow};
-use crate::util::{RecordRow, Records};
+use crate::util::Records;
 
 pub struct Periodic {
-    source_file: String,
-    transaction_file: Writer<File>,
-    records: Vec<(String, u8, Option<i64>)>,
+    db_file: String,
+    user: User,
 }
 
 impl Periodic {
-    pub fn new(source_file: &str, transaction_file: &str) -> Self {
-        let records = Records::from_file(source_file)
-            .expect("Cannot process records from source_file")
-            .into_iter()
-            .filter(|record| match record.2 {
-                Some(timestamp) => {
-                    let days =
-                        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc);
-                    days.num_days_from_ce() == get_today().num_days_from_ce()
-                }
-                None => true,
-            })
-            .collect();
+    pub fn new(db_file: &str, user_id: u64) -> Self {
+        let mut user = User::from_file(db_file, user_id).unwrap();
+        user.periodic = Records(
+            user.periodic
+                .into_iter()
+                .filter(|record| match record.2 {
+                    Some(timestamp) => {
+                        let days = DateTime::<Utc>::from_utc(
+                            NaiveDateTime::from_timestamp(timestamp, 0),
+                            Utc,
+                        );
+                        days.num_days_from_ce() == get_today().num_days_from_ce()
+                    }
+                    None => true,
+                })
+                .collect::<Vec<_>>(),
+        );
 
         Self {
-            source_file: source_file.to_owned(),
-            transaction_file: WriterBuilder::new()
-                .has_headers(
-                    fs::read_to_string(&transaction_file)
-                        .expect("Unable to read source file")
-                        .is_empty(),
-                )
-                .from_writer(
-                    OpenOptions::new()
-                        .append(true)
-                        .write(true)
-                        .open(&transaction_file)
-                        .unwrap(),
-                ),
-            records,
+            db_file: db_file.to_owned(),
+            user,
         }
     }
 
     fn complete_task(&mut self, task_name: &str) -> Option<()> {
         let record = self
-            .records
+            .user
+            .periodic
             .iter_mut()
             .filter(|record| record.0 == task_name)
             .next();
         if let Some(record) = record {
             record.2 = Some(DateTime::timestamp(&Utc::now()));
-            self.transaction_file
-                .serialize(RecordRow {
-                    task: &record.0,
-                    points: record.1,
-                    completed: record.2,
-                })
-                .expect("Unable to serialize data and write");
-            self.transaction_file.flush().unwrap();
-            self.sync_with_source();
+            self.user
+                .transactions
+                .push(record.0.to_owned(), record.1, record.2);
+            self.user
+                .update(&self.db_file)
+                .expect("Cannot update db for user");
             Some(())
         } else {
             None
         }
     }
+    /*
+       fn sync_with_source(&self) {
+           let mut wtr = Writer::from_writer(
+               OpenOptions::new()
+                   .truncate(true)
+                   .write(true)
+                   .open(&self.source_file)
+                   .unwrap(),
+           );
 
-    fn sync_with_source(&self) {
-        let mut wtr = Writer::from_writer(
-            OpenOptions::new()
-                .truncate(true)
-                .write(true)
-                .open(&self.source_file)
-                .unwrap(),
-        );
-
-        for record in &self.records {
-            wtr.serialize(RecordRow {
-                task: &record.0,
-                points: record.1,
-                completed: record.2,
-            })
-            .expect("Unable to write record to source file");
-        }
-    }
-
+           for record in &self.records {
+               wtr.serialize(RecordRow {
+                   task: &record.0,
+                   points: record.1,
+                   completed: record.2,
+               })
+               .expect("Unable to write record to source file");
+           }
+       }
+    */
     fn delegate_interaction_response<'a>(
         &self,
         interaction: &'a mut CreateInteractionResponse,
@@ -111,7 +95,7 @@ impl Periodic {
         let mut when = String::new();
         let mut completed = 0;
 
-        for record in &self.records {
+        for record in &self.user.periodic {
             tasks.push_str(&format!("{}\n", record.0));
             rewards.push_str(&format!(":coin:x{}\n", record.1));
             when.push_str(&match record.2 {
@@ -129,7 +113,7 @@ impl Periodic {
             })
         }
 
-        let completed: f32 = completed as f32 / self.records.len() as f32;
+        let completed: f32 = completed as f32 / self.user.periodic.len() as f32;
 
         interaction.interaction_response_data(|data| {
             data.create_embed(|embed| {
@@ -157,11 +141,11 @@ impl Periodic {
                     })
             })
             .components(|components| {
-                if self.records.iter().any(|record| record.2.is_none()) {
+                if self.user.periodic.iter().any(|record| record.2.is_none()) {
                     components.create_action_row(|row| {
                         row.create_select_menu(|menu| {
                             menu.options(|options| {
-                                for record in &self.records {
+                                for record in &self.user.periodic {
                                     if record.2.is_none() {
                                         options.create_option(|option| {
                                             option

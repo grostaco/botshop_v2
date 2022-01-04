@@ -1,8 +1,4 @@
-use std::{
-    fs::{self, File, OpenOptions},
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use chrono::{DateTime, Datelike, NaiveDateTime, Utc};
 use interpolation::lerp;
@@ -19,7 +15,7 @@ use serenity::{
 
 use super::util::{get_today, get_tomorrow};
 use crate::util::db::User;
-use crate::util::{RecordRow, Records};
+
 /// A struct to represent every daily tasks and corresponding files
 pub struct Daily {
     db_file: String,
@@ -28,9 +24,22 @@ pub struct Daily {
 
 impl Daily {
     pub fn new(db_file: &str, user_id: u64) -> Self {
+        let mut user = User::from_file(db_file, user_id).unwrap();
+        user.daily.iter_mut().for_each(|mut record| {
+            if record.2.is_some() {
+                let days = DateTime::<Utc>::from_utc(
+                    NaiveDateTime::from_timestamp(record.2.unwrap(), 0),
+                    Utc,
+                );
+                if days.num_days_from_ce() != get_today().num_days_from_ce() {
+                    record.2 = None;
+                }
+            }
+        });
+
         Self {
             db_file: db_file.to_owned(),
-            user: User::from_file(db_file, user_id).unwrap(),
+            user,
         }
     }
 
@@ -54,26 +63,6 @@ impl Daily {
             None
         }
     }
-
-    /*
-    fn sync_with_source(&self) {
-        let mut wtr = Writer::from_writer(
-            OpenOptions::new()
-                .truncate(true)
-                .write(true)
-                .open(&self.source_file)
-                .unwrap(),
-        );
-        for record in &self.records {
-            wtr.serialize(RecordRow {
-                task: &record.0,
-                points: record.1,
-                completed: record.2,
-            })
-            .expect("Unable to write record to source file");
-        }
-    }
-     */
 
     fn delegate_interaction_response<'a>(
         &self,
