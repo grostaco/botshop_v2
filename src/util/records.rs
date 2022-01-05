@@ -7,21 +7,21 @@ use rusqlite::{
 };
 use serde::{Deserialize, Serialize};
 
-pub type Record = (String, u8, Option<i64>);
+pub type Record = (String, i64, Option<i64>);
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Records(pub Vec<Record>);
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct RecordWrite {
     pub task: String,
-    pub points: u8,
+    pub points: i64,
     pub completed: Option<i64>,
 }
 
 #[derive(Serialize)]
 pub struct RecordRow<'a> {
     pub task: &'a str,
-    pub points: u8,
+    pub points: i64,
     pub completed: Option<i64>,
 }
 
@@ -30,7 +30,7 @@ impl Records {
         Records(Vec::new())
     }
 
-    pub fn push(&mut self, task: String, points: u8, timestamp: Option<i64>) {
+    pub fn push(&mut self, task: String, points: i64, timestamp: Option<i64>) {
         self.0.push((task, points, timestamp))
     }
 

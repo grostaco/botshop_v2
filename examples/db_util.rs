@@ -51,7 +51,7 @@ enum ModifySub {
         /// Record's name to be inserted
         name: String,
         /// Record's points to be inserted
-        points: u8,
+        points: i64,
         /// Record's timestamp to be inserted. Blank if it's not completed.
         timestamp: Option<i64>,
     },
@@ -69,7 +69,7 @@ enum ModifySub {
         /// Record's new name
         name: String,
         /// Record's new points
-        points: u8,
+        points: i64,
         /// Record's new timestamp. Blank if it's not completed.
         timestamp: Option<i64>,
     },
