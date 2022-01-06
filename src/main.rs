@@ -53,7 +53,12 @@ impl EventHandler for Handler {
         println!("{} is connected!", ready.user.name);
 
         let guild_command = GuildId::set_application_commands(
-            &GuildId(894226522297229372),
+            &GuildId(
+                env::var("GUILD_ID")
+                    .expect("GUILD_ID not set")
+                    .parse()
+                    .expect("GUILD_ID must be an integer"),
+            ),
             &ctx.http,
             |commands| {
                 commands
