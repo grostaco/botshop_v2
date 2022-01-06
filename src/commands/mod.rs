@@ -1,5 +1,6 @@
 pub mod daily;
 pub mod info;
+pub mod modify;
 pub mod pending;
 pub mod shop;
 pub mod transactions;
