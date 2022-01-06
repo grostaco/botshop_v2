@@ -33,7 +33,7 @@ impl EventHandler for Handler {
                     .await
                     .expect("Something went wrong with the transactions command!"),
                 "modify" => Modify::new("resources/users.db", command.user.id.0)
-                    .handle_interaction(&ctx.http, command, &ctx.shard)
+                    .handle_interaction(&ctx.http, command)
                     .await
                     .expect("Something went wrong with the modify command!"),
                 "nya" => {

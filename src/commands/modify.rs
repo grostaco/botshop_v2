@@ -4,7 +4,6 @@ use crate::util::db::{update_user, User};
 use chrono::Utc;
 use serenity::{
     builder::CreateApplicationCommand,
-    client::bridge::gateway::ShardMessenger,
     http::Http,
     model::interactions::application_command::{
         ApplicationCommandInteraction,
@@ -88,7 +87,6 @@ impl<'a> Modify<'a> {
         &mut self,
         http: &Arc<Http>,
         interaction: ApplicationCommandInteraction,
-        shard: &ShardMessenger,
     ) -> Result<(), serenity::Error> {
         let mut user = User::from_file(self.db_path, self.user_id).unwrap();
 
