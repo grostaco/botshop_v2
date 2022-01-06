@@ -4,7 +4,7 @@ use rusqlite::{params, Connection, Result};
 pub struct User {
     pub id: u64,
     pub daily: Records,
-    pub periodic: Records,
+    pub pending: Records,
     pub transactions: Records,
 }
 
@@ -13,7 +13,7 @@ impl User {
         Self {
             id,
             daily: Records::new(),
-            periodic: Records::new(),
+            pending: Records::new(),
             transactions: Records::new(),
         }
     }
@@ -50,7 +50,7 @@ pub fn insert_user(db_path: &str, user: User) -> Result<()> {
     stmt.execute(params![
         user.id,
         user.daily,
-        user.periodic,
+        user.pending,
         user.transactions
     ])?;
 
@@ -68,7 +68,7 @@ pub fn update_user(db_path: &str, user: &User) -> Result<()> {
         user.id
     ))?;
 
-    stmt.execute(params![user.daily, user.periodic, user.transactions])?;
+    stmt.execute(params![user.daily, user.pending, user.transactions])?;
 
     Ok(())
 }
@@ -82,7 +82,7 @@ pub fn query_user(db_path: &str, id: u64) -> Result<Option<User>> {
             Ok(User {
                 id: row.get(0)?,
                 daily: row.get(1)?,
-                periodic: row.get(2)?,
+                pending: row.get(2)?,
                 transactions: row.get(3)?,
             })
         })?

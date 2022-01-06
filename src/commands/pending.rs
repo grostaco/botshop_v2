@@ -24,8 +24,8 @@ pub struct Pending {
 impl Pending {
     pub fn new(db_file: &str, user_id: u64) -> Self {
         let mut user = User::from_file(db_file, user_id).unwrap();
-        user.periodic = Records(
-            user.periodic
+        user.pending = Records(
+            user.pending
                 .into_iter()
                 .filter(|record| match record.2 {
                     Some(timestamp) => {
@@ -49,7 +49,7 @@ impl Pending {
     fn complete_task(&mut self, task_name: &str) -> Option<()> {
         let record = self
             .user
-            .periodic
+            .pending
             .iter_mut()
             .filter(|record| record.0 == task_name)
             .next();
@@ -71,7 +71,7 @@ impl Pending {
         &self,
         interaction: &'a mut CreateInteractionResponse,
     ) -> &'a mut CreateInteractionResponse {
-        if self.user.periodic.len() == 0 {
+        if self.user.pending.len() == 0 {
             return interaction.interaction_response_data(|data| {
                 data.create_embed(|embed| {
                     embed
@@ -88,7 +88,7 @@ impl Pending {
         let mut when = String::new();
         let mut completed = 0;
 
-        for record in &self.user.periodic {
+        for record in &self.user.pending {
             tasks.push_str(&format!("{}\n", record.0));
             rewards.push_str(&format!(":coin:x{}\n", record.1));
             when.push_str(&match record.2 {
@@ -106,7 +106,7 @@ impl Pending {
             })
         }
 
-        let completed = completed as f32 / self.user.periodic.len() as f32;
+        let completed = completed as f32 / self.user.pending.len() as f32;
 
         interaction.interaction_response_data(|data| {
             data.create_embed(|embed| {
@@ -134,11 +134,11 @@ impl Pending {
                     })
             })
             .components(|components| {
-                if self.user.periodic.iter().any(|record| record.2.is_none()) {
+                if self.user.pending.iter().any(|record| record.2.is_none()) {
                     components.create_action_row(|row| {
                         row.create_select_menu(|menu| {
                             menu.options(|options| {
-                                for record in &self.user.periodic {
+                                for record in &self.user.pending {
                                     if record.2.is_none() {
                                         options.create_option(|option| {
                                             option

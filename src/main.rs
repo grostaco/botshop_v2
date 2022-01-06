@@ -10,6 +10,7 @@ use serenity::{
 pub mod commands;
 pub mod util;
 
+use crate::commands::modify::Modify;
 pub use crate::util::Records;
 use commands::{Daily, Pending, Transactions};
 struct Handler;
@@ -31,6 +32,10 @@ impl EventHandler for Handler {
                     .handle_interaction(&ctx.http, command, &ctx.shard)
                     .await
                     .expect("Something went wrong with the transactions command!"),
+                "modify" => Modify::new("resources/users.db", command.user.id.0)
+                    .handle_interaction(&ctx.http, command, &ctx.shard)
+                    .await
+                    .expect("Something went wrong with the modify command!"),
                 "nya" => {
                     command
                         .create_interaction_response(&ctx.http, |response| {
@@ -68,6 +73,7 @@ impl EventHandler for Handler {
                             .description("Fetch your transactions history :>")
                     })
                     .create_application_command(|command| command.name("nya").description("nya :D"))
+                    .add_application_command(Modify::create_application_command())
             },
         )
         .await

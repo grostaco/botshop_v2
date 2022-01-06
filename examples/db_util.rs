@@ -95,7 +95,7 @@ fn main() {
             {
                 Some(user) => println!(
                     "User found!\nID: {}\nDaily Tasks: {:?}\nPeriodic Tasks: {:?}\nTransaction history: {:?}",
-                    user.id, user.daily, user.periodic, user.transactions
+                    user.id, user.daily, user.pending, user.transactions
                 ),
                 None => println!("Cannot find user with id {}", userid),
             };
@@ -115,7 +115,7 @@ fn main() {
 
             let record = match record_type {
                 RecordType::Daily => &mut user.daily,
-                RecordType::Pending => &mut user.periodic,
+                RecordType::Pending => &mut user.pending,
                 RecordType::Transaction => &mut user.transactions,
             };
 
