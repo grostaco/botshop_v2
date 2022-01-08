@@ -20,10 +20,12 @@ pub struct Transactions(ComponentManager);
 const CHUNK_SIZE: usize = 10;
 
 impl Transactions {
-    pub fn new(db_file: &str, user_id: u64) -> Self {
+    pub async fn new(db_file: &str, user_id: u64) -> Self {
         let user = User::from_file(db_file, user_id).unwrap();
         let mut component_mgr = ComponentManager::new();
-        component_mgr.add_component(Box::new(Page::new(user.transactions)));
+        component_mgr
+            .add_component(Box::new(Page::new(user.transactions)))
+            .await;
         Self(component_mgr)
     }
 
