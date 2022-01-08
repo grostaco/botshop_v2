@@ -12,6 +12,7 @@ use serenity::{
     },
 };
 
+// If component-based things break, check here. The methods may not actually be Send + Sync
 #[async_trait]
 pub trait Component: Send + Sync {
     fn delegate_response<'a>(
@@ -26,18 +27,18 @@ pub trait Component: Send + Sync {
     ) -> Result<(), serenity::Error>;
 }
 pub struct ComponentManager {
-    components: Vec<Box<dyn Component>>,
+    components: Mutex<Vec<Box<dyn Component>>>,
 }
 
 impl ComponentManager {
     pub fn new() -> Self {
         Self {
-            components: Vec::new(),
+            components: Mutex::new(Vec::new()),
         }
     }
 
-    pub fn add_component(&mut self, component: Box<dyn Component>) {
-        self.components.push(component)
+    pub async fn add_component(&mut self, component: Box<dyn Component>) {
+        self.components.lock().await.push(component)
     }
 
     pub async fn handle_interaction(
@@ -47,9 +48,10 @@ impl ComponentManager {
         shard_messenger: &ShardMessenger,
         timeout: u64,
     ) -> Result<(), serenity::Error> {
+        let components = self.components.lock().await;
         interaction
             .create_interaction_response(http, |response| {
-                self.components
+                components
                     .iter()
                     .fold(response, |acc, component| component.delegate_response(acc))
             })
@@ -62,8 +64,7 @@ impl ComponentManager {
             .await_component_interactions(shard_messenger)
             .timeout(Duration::from_secs(timeout))
             .await;
-
-        let components = &Arc::new(Mutex::new(&mut self.components));
+        let components = &Arc::new(Mutex::new(components));
         collector
             .for_each(|interaction| async move {
                 for component in components.lock().await.iter_mut().filter(|component| {
