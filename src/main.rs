@@ -12,7 +12,7 @@ pub mod util;
 
 use crate::commands::modify::Modify;
 pub use crate::util::Records;
-use commands::{Daily, Pending, Transactions};
+use commands::{info::Info, Daily, Pending, Transactions};
 struct Handler;
 
 #[async_trait]
@@ -37,6 +37,10 @@ impl EventHandler for Handler {
                     .handle_interaction(&ctx.http, command)
                     .await
                     .expect("Something went wrong with the modify command!"),
+                "aboutme" => Info::new("resources/users.db", command.user.id.0)
+                    .handle_interaction(&ctx.http, command, &ctx.shard)
+                    .await
+                    .expect("Something went wrong with the info command!"),
                 "nya" => {
                     command
                         .create_interaction_response(&ctx.http, |response| {
@@ -77,6 +81,11 @@ impl EventHandler for Handler {
                         command
                             .name("transactions")
                             .description("Fetch your transactions history :>")
+                    })
+                    .create_application_command(|command| {
+                        command
+                            .name("aboutme")
+                            .description("A personalized embed about how well you have been doing!")
                     })
                     .create_application_command(|command| command.name("nya").description("nya :D"))
                     .add_application_command(Modify::create_application_command())
